@@ -848,24 +848,3 @@ As the system scales, the API layer can be extended with:
 * Read replicas
 * Service decomposition
 
-These decisions will be covered in later system-design phases.
-
-````
-
-## ✅ After pasting
-
-Your project should now look like:
-
-```text
-clothes-rental-system/
-│
-└── docs/
-    ├── 01-requirements.md
-    ├── 02-scale-estimation.md
-    ├── 03-database-design.md
-    └── 04-api-design.md   ← NEW
-````
-
-**Don't start the next architecture phase yet.** First save this document.
-
-Then we'll do a **Phase 3 API design review**, mainly checking whether any important APIs/business flows are missing. After that, we'll move to **Scale Estimation**, which is important because this is where we'll establish the numbers behind your eventual “scalable system” claim on LinkedIn.
