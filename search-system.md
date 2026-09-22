@@ -269,3 +269,432 @@ The main goals of the Search System are:
 
 
 
+## 2. Search Requirements & Query Design
+
+The Search System needs to support different types of search
+queries.
+
+A user may search using only a keyword, only filters, or a
+combination of keyword and filters.
+
+The search API should convert these user inputs into a
+structured search query.
+
+---
+
+## 2.1 Keyword Search
+
+Users should be able to search using text.
+
+Example:
+
+```text
+black shirt
+````
+
+The system should search relevant fields such as:
+
+* title
+* description
+* brand
+* category
+
+Example:
+
+```text
+Search Query:
+"black shirt"
+```
+
+Possible matching listings:
+
+```text
+Black Cotton Shirt
+Black Formal Shirt
+Black Casual Shirt
+Black Linen Shirt
+```
+
+The search system should return the most relevant matching
+results.
+
+---
+
+## 2.2 Filter Search
+
+Users should also be able to search without entering a
+keyword.
+
+For example:
+
+```text
+category = SHIRT
+gender = MEN
+location = Delhi
+```
+
+The system should return clothing items matching these
+conditions.
+
+Example:
+
+```text
+GET /api/v1/clothing?category=SHIRT&gender=MEN&location=Delhi
+```
+
+---
+
+## 2.3 Combined Search
+
+Users can combine keyword search with filters.
+
+Example:
+
+```text
+Keyword:
+black shirt
+
+Filters:
+Gender = MEN
+Location = Delhi
+Price <= ₹500
+Condition = GOOD
+```
+
+Conceptually:
+
+```text
+Search
+AND
+Gender = MEN
+AND
+Location = Delhi
+AND
+Price <= ₹500
+AND
+Condition = GOOD
+```
+
+Only clothing items matching the required conditions should
+be returned.
+
+---
+
+## 2.4 Availability Filter
+
+Availability is date-dependent.
+
+A clothing item may be available for one date range but
+unavailable for another date range.
+
+Example:
+
+```text
+Requested dates:
+
+September 20 → September 25
+```
+
+The search system should identify clothing items that do not
+have conflicting blocking bookings for the requested dates.
+
+The booking system remains responsible for the final
+availability decision during booking creation.
+
+Therefore:
+
+```text
+Search
+   ↓
+Show potentially available clothing
+   ↓
+User selects clothing
+   ↓
+Booking System performs authoritative availability check
+```
+
+Search results should not be treated as a reservation
+guarantee.
+
+---
+
+## 2.5 Price Filter
+
+Users should be able to specify a price range.
+
+Example:
+
+```text
+Minimum Price = ₹200
+Maximum Price = ₹500
+```
+
+Conceptually:
+
+```text
+pricePerDay >= 200
+AND
+pricePerDay <= 500
+```
+
+This allows users to discover clothing within their budget.
+
+---
+
+## 2.6 Sorting
+
+The search system should support sorting.
+
+Supported examples:
+
+```text
+price_asc
+price_desc
+newest
+```
+
+### Price Ascending
+
+```text
+₹200
+₹300
+₹400
+₹500
+```
+
+### Price Descending
+
+```text
+₹1000
+₹900
+₹800
+₹700
+```
+
+### Newest
+
+Recently created clothing listings appear first.
+
+Sorting should be performed by the search system rather than
+fetching a large result set and sorting it inside the API
+server.
+
+---
+
+## 2.7 Pagination
+
+The API should not return every matching clothing item.
+
+Example:
+
+```text
+page = 1
+limit = 20
+```
+
+The response contains approximately 20 results.
+
+A later request can retrieve the next page.
+
+Example:
+
+```text
+page = 2
+limit = 20
+```
+
+This prevents large responses and reduces unnecessary resource
+usage.
+
+---
+
+## 2.8 Example Search Request
+
+A complete search request could look like:
+
+```text
+GET /api/v1/clothing
+    ?keyword=black+shirt
+    &category=SHIRT
+    &gender=MEN
+    &location=Delhi
+    &minPrice=200
+    &maxPrice=500
+    &condition=GOOD
+    &sort=price_asc
+    &page=1
+    &limit=20
+```
+
+The API server receives these parameters and builds the
+appropriate search query.
+
+---
+
+## 2.9 Search Query Processing
+
+The high-level flow is:
+
+```text
+Client
+   ↓
+Search Request
+   ↓
+Load Balancer
+   ↓
+API Server
+   ↓
+Validate Search Parameters
+   ↓
+Build Search Query
+   ↓
+Search Database / Search Engine
+   ↓
+Apply Filters
+   ↓
+Apply Sorting
+   ↓
+Apply Pagination
+   ↓
+Return Results
+```
+
+---
+
+## 2.10 Search Parameters
+
+The main search parameters are:
+
+| Parameter | Purpose                      |
+| --------- | ---------------------------- |
+| keyword   | Text-based search            |
+| category  | Filter by clothing category  |
+| gender    | Filter by target gender      |
+| size      | Filter by clothing size      |
+| brand     | Filter by brand              |
+| condition | Filter by clothing condition |
+| location  | Filter by location           |
+| minPrice  | Minimum rental price         |
+| maxPrice  | Maximum rental price         |
+| sort      | Sorting option               |
+| page      | Result page                  |
+| limit     | Number of results            |
+
+---
+
+## 2.11 Example Query
+
+Suppose the user searches:
+
+```text
+Keyword = black shirt
+Gender = MEN
+Location = Delhi
+Max Price = ₹500
+Sort = price_asc
+Limit = 20
+```
+
+The system conceptually performs:
+
+```text
+Find clothing where:
+
+keyword matches
+AND
+gender = MEN
+AND
+location = Delhi
+AND
+pricePerDay <= 500
+AND
+status = AVAILABLE
+
+Sort by:
+
+pricePerDay ASC
+
+Return:
+
+20 results
+```
+
+The exact query implementation will depend on whether the
+system is using MongoDB or a dedicated search engine.
+
+---
+
+## 2.12 Search and Booking Responsibility
+
+The Search System and Booking System have different
+responsibilities.
+
+### Search System
+
+Responsible for:
+
+* Finding relevant clothing
+* Applying search filters
+* Sorting results
+* Pagination
+* Fast discovery
+
+### Booking System
+
+Responsible for:
+
+* Final availability verification
+* Preventing double booking
+* Creating the booking
+* Maintaining booking state
+* Concurrency control
+
+Therefore, even if a search result says a clothing item is
+available, the booking system must perform a final
+availability check.
+
+Example:
+
+```text
+User searches
+      ↓
+Search System
+      ↓
+Clothing appears available
+      ↓
+User clicks Rent
+      ↓
+Booking System
+      ↓
+Final availability check
+      ↓
+Create booking
+```
+
+This separation prevents the search layer from becoming the
+source of truth for booking availability.
+
+---
+
+## 2.13 Search Design Principle
+
+The Search System should optimize for:
+
+* Fast read performance
+* Flexible filtering
+* Relevant keyword matching
+* Efficient sorting
+* Scalable pagination
+* High search throughput
+
+The Booking System should optimize for:
+
+* Strong consistency
+* Correct availability
+* Concurrency control
+* No double booking
+
+This separation allows each part of the system to use the
+appropriate architecture for its requirements.
+
+````
